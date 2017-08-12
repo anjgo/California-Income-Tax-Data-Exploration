@@ -1,0 +1,607 @@
+---
+title: "California Income Tax Exploratory Data Analysis by Anjali Godbole"
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, error=FALSE, message=FALSE)
+```
+
+
+
+```{r}
+#Load libraries and read in data.
+library(ggplot2)
+library(stats)
+library(dplyr)
+library(ggmap)
+library(GGally)
+library(gridExtra)
+taxes <- read.csv('taxes_income.csv')
+```
+
+# Introduction
+
+A data set from Kaggle relating income data to US zipcodes was explored. This analysis focused on data from California. In addition, a subset of variables were selected for analysis. Please see the readme file for a link to the data set and documentation. All dollar amounts are in units of thousands of dollars.
+
+# Univariate Plots Section
+
+The data types and summary statistics for the data set were first examined.
+
+```{r}
+#change column names based on variable definitions from documentation.
+colnames(taxes) <- c("State", "Zipcode", "AGI_category", "Num_returns", "Num_single_returns",                        "Num_joint_returns",
+                     "Num_dependents", "AGI", "Num_ord_div", "Amt_ord_div", 
+                     "Num_bus_inc","Amt_bus_inc", "Num_cap_gain", 
+                     "Amt_cap_gain", "Num_tax_paid", 
+                     "Amt_tax_paid", "Num_MI", "Amt_MI", "Child_credit", "Amt_child_credit")
+```
+
+
+```{r}
+#overview of data
+str(taxes)
+```
+
+The zipcodes were changed to factors. In addition, zipcodes equal to 99999 were deleted as these are masked zipcodes used for privacy protection.
+```{r}
+#Delete 99999 zipcodes
+taxes <- subset(taxes, Zipcode!= 99999)
+```
+
+```{r}
+#Change AGI_category and Zipcodes to factor. 
+taxes$AGI_category <-as.factor(taxes$AGI_category)
+taxes$Zipcode <-as.factor(taxes$Zipcode)
+```
+
+```{r}
+#summary of taxes dataframe
+summary(taxes)
+```
+
+There are 8,903 observations of 20 variables in this data set. 
+
+The AGI_category variable ranges from 1-6 as defined below based on the adjusted gross income of the tax return:
+        1 = 1 - 25,000
+        2 = 25,000 - 50,000
+        3 = 50,000 - 75,000
+        4 = 75,000 - 100,000
+        5 = 100,000 - 200,000
+        6 = 200,000 or more
+
+In order to examine data for each zipcode, the data for each AGI category was added for each zipcode. This new dataset was then explored.
+```{r}
+#Group data by zipcode. Add AGI, Amt_bus_inc, Amt_cap_gain, Amt_tax_paid, 
+#Amt_MI, Amt_child_credit and create new dataframe.
+zipcode_groups <- group_by(taxes, Zipcode) 
+taxes.zipcode <- summarise(zipcode_groups,
+                           AGI_sum = sum(AGI),
+                           Ord_div_sum = sum(Amt_ord_div),
+                           Bus_inc_sum = sum(Amt_bus_inc),
+                           Cap_gain_sum = sum(Amt_cap_gain),
+                           Tax_paid_sum = sum(Amt_tax_paid),
+                           MI_sum = sum(Amt_MI),
+                           Child_sum = sum(Amt_child_credit))
+
+
+
+```
+
+```{r}
+str(taxes.zipcode)
+```
+
+
+```{r}
+#Plot AGI_sum per zipcode distribution.
+p1 = ggplot(taxes.zipcode, aes(AGI_sum)) +
+  geom_histogram(fill = 'white', color = 'black')
+p2 = ggplot(taxes.zipcode, aes(x  = 1, y = AGI_sum)) +
+  geom_boxplot(fill = 'white', color = 'black') + 
+  coord_flip()
+grid.arrange(p1,p2, ncol = 1)
+```
+
+```{r}
+#Summary of AGI_sum
+summary(taxes.zipcode$AGI_sum)
+
+```
+
+The average AGI per zipcode was 865,900. There is a wide range of values from 3,155 to 10,600,000. The distribution is positively skewed. Most of the data is below 3,000,000 as shown in the box plot.
+
+
+```{r}
+#Plot Ord_div_sum distribution
+p1 = ggplot(taxes.zipcode, aes(Ord_div_sum)) +
+  geom_histogram(fill = 'red', color = 'black', bins = 100) +
+  scale_y_log10()
+p2 = ggplot(taxes.zipcode, aes(x  = 1, y = Ord_div_sum)) +
+  geom_boxplot(fill = 'red', color = 'black') + 
+  coord_flip()
+grid.arrange(p1,p2, ncol = 1)
+```
+
+```{r}
+#Summary of Ord_div_sum
+summary(taxes.zipcode$Ord_div_sum)
+```
+
+The average ordinary dividends reported was 5,280 with a maximum of 385,300. A log10 transformation was applied to the y axis. The distribution is positively skewed. There are several gaps in the data after at values greater than 100,000. Most of the data is below 50,000 excluding outliers.
+
+```{r}
+#Plot Bus_inc_sum distribution
+p1 = ggplot(taxes.zipcode, aes(Bus_inc_sum)) +
+  geom_histogram(fill = 'blue', color = 'black', bins = 50)
+p2 = ggplot(taxes.zipcode, aes(x  = 1, y = Bus_inc_sum)) +
+  geom_boxplot(fill = 'blue', color = 'black') + 
+  coord_flip()
+grid.arrange(p1,p2, ncol = 1)
+```
+
+```{r}
+#Summary of Bus_inc_sum
+summary(taxes.zipcode$Bus_inc_sum)
+```
+
+The average business income reported was 35,430 with a maximum of 242,100. The distribution is positively skewed. Most of the data is below 100,000 as shown in the box plot.
+
+```{r}
+#Plot Cap_gain_sum distribution
+p1 = ggplot(taxes.zipcode, aes(Cap_gain_sum)) +
+  geom_histogram(fill = 'green', color = 'black', bins = 50) +
+  scale_y_log10()
+p2 = ggplot(taxes.zipcode, aes(x  = 1, y = Cap_gain_sum)) +
+  geom_boxplot(fill = 'green', color = 'black') + 
+  coord_flip(ylim = c(0, 125000))
+grid.arrange(p1,p2, ncol = 1)
+```
+
+```{r}
+#Summary of Cap_gain_sum
+summary(taxes.zipcode$Cap_gain_sum)
+```
+
+The average net capital gains was 65,430 with a positively skewed distribution. The negative minimum value of -20 denotes greater capital loss than gain. There is a gap in the distribution from about 1,000,000 to 2,000,000. Data below about 120,000 excludes outliers.
+
+```{r}
+#Plot Tax_paid_sum distribution
+p1 = ggplot(taxes.zipcode, aes(Tax_paid_sum)) +
+  geom_histogram(fill = 'purple', color = 'black', bins = 40)
+
+p2 = ggplot(taxes.zipcode, aes(x  = 1, y = Tax_paid_sum)) +
+  geom_boxplot(fill = 'purple', color = 'black') + 
+  coord_flip(ylim = c(0, 250000))
+grid.arrange(p1,p2, ncol = 1)
+```
+
+```{r}
+#Summary of Tax_paid_sum
+summary(taxes.zipcode$Tax_paid_sum)
+```
+
+The average amount of taxes paid per zipcode was 65,640. The distribution is positively skewed, which is similar to the previous plots. Outliers are greater than 200,000.
+
+```{r}
+#Plot MI_sum distribution
+p1 = ggplot(taxes.zipcode, aes(MI_sum)) +
+  geom_histogram(fill = 'orange', color = 'black')
+p2 = ggplot(taxes.zipcode, aes(x  = 1, y = Cap_gain_sum)) +
+  geom_boxplot(fill = 'orange', color = 'black') + 
+  coord_flip(ylim = c(0, 150000))
+grid.arrange(p1,p2, ncol = 1)
+```
+
+```{r}
+#Summary of MI_sum
+summary(taxes.zipcode$MI_sum)
+```
+
+The average mortgage interest deduction was 34,530 with most of the data below 125,000 excluding outliers.
+
+```{r}
+#Plot Child_sum distribution
+p1 = ggplot(taxes.zipcode, aes(Child_sum)) +
+  geom_histogram(fill = 'black', color = 'white')
+p2 = ggplot(taxes.zipcode, aes(x  = 1, y = Child_sum)) +
+  geom_boxplot(fill = 'black', color = 'black') +
+  coord_flip()
+grid.arrange(p1,p2, ncol = 1)
+```
+
+```{r}
+#Summary of Child_sum
+summary(taxes.zipcode$Child_sum)
+```
+
+The average child and dependent care deduction was 256. Most of the data is below 1,000 excluding outliers.
+
+# Univariate Analysis
+
+### What is the structure of your dataset?
+
+There are 1,483 observations of 9 variables.
+
+### What is/are the main feature(s) of interest in your dataset?
+
+The main feature is the AGI. The correlation between other variables and AGI will be explored further.
+
+### What other features in the dataset do you think will help support your \
+investigation into your feature(s) of interest?
+
+Business income (Bus_inc_sum) and net capital gains (Cap_gain_sum) may correlate with AGI.
+
+### Did you create any new variables from existing variables in the dataset?
+
+The new variables of AGI_sum, Ord_div_sum, Bus_inc_sum, Cap_gain_sum, Tax_paid_sum, MI_sum and Child_sum were created from the original dataset. These were created by adding the data for each zipcode across AGI categories.
+
+### Of the features you investigated, were there any unusual distributions? \
+Did you perform any operations on the data to tidy, adjust, or change the form \
+of the data? If so, why did you do this?
+
+The Ord_div_sum and Cap_gain_sum were log10 transformed on the y axis of the historgram due to the wide range in counts. The transformed distribution of both variables contained  gaps.
+
+# Bivariate Plots Section
+
+
+Next, a correlation plot of each variable in the new dataset was plotted.
+
+```{r}
+#Correlation plot of new dataset variables. Zipcode was excluded as a variable.
+#ggcorr(nba[, 2:15], label = TRUE)
+taxes_zipcode.cor <- subset(taxes.zipcode, select = -c(Zipcode))
+ggcorr(taxes_zipcode.cor, label = TRUE)
+```
+
+From this correlation plot, the following variables showed correlation and will be explored further:
+
+1. AGI (AGI_sum) with business net income (Bus_inc_sum)
+2. AGI with mortage interest amount (MI_sum)
+3. Child and dependent care credit amount (Child_sum) with MI_sum
+4. Business net income with ordinary dividends amount (Ord_div_sum)
+
+
+```{r}
+#Scatterplot of Bus_inc_sum vs. AGI_sum
+ggplot(taxes.zipcode, aes(x = Bus_inc_sum, y = AGI_sum)) +
+  geom_point(color = 'red', position = 'jitter', alpha = 1/4)
+```
+
+This plot shows that the data is concentrated in the range of 0 to 100,000 for Bus_inc_sum. The next plot shows the data in this range.
+
+```{r}
+#Scatterplot of AGI_sum vs. Bus_inc_sum excluding outliers and with a linear model line.
+ggplot(taxes.zipcode, aes(x = Bus_inc_sum, y = AGI_sum)) +
+  geom_point(color = 'red', position = 'jitter', alpha = 1/6) +
+  scale_x_continuous(limits = c(0, 100000)) +
+  scale_y_continuous(limits = c(0, 5000000)) +
+  geom_smooth(method = 'lm')
+```
+
+```{r}
+#Correlation coefficient of AGI_sum and Bus_inc_sum
+cor.test(taxes.zipcode$AGI_sum,taxes.zipcode$Bus_inc_sum)
+```
+
+This plot shows data closer to the linear model fit line in the range of about 0 to 75,000 of Bus_inc_sum with more disparate data for higher values. The correlation coefficent is 0.91, which implies that these two variables are closely correlated. Increasing business income is correlated with increasing AGI for zipcode areas.
+
+
+```{r}
+#Scatterplot of AGI_sum vs. MI_sum
+ggplot(taxes.zipcode, aes(x = MI_sum, y = AGI_sum)) +
+  geom_point(color = 'orange', position = 'jitter', alpha = 1/4)
+```
+
+This plot shows that the data is concentrated at lower values of MI_sum and AGI_sum. The x and y limits will be adjusted in the next plot to exclude outliers.
+
+```{r}
+#Scatterplot of AGI_sum vs. MI_sum excluding outliers and with a linear fit line
+ggplot(taxes.zipcode, aes(x = MI_sum, y = AGI_sum)) +
+  geom_point(color = 'orange', position = 'jitter', alpha = 1/4) +
+  scale_x_continuous(limits = c(0, 75000)) +
+  scale_y_continuous(limits = c(0, 1000000)) +
+  geom_smooth(method = 'lm')
+```
+
+```{r}
+#Correlation between AGI_sum and MI_sum
+cor.test(taxes.zipcode$AGI_sum, taxes.zipcode$MI_sum)
+```
+
+The data closely fits the linear fit line in the MI_sum range of 0 to 10,000. There is more variation from the linear fit line at higher values. The correlation coefficient was 0.83, which shows that the mortage interest deduction and AGI are correlated.
+
+
+```{r}
+#Scatterplot of MI_sum vs. Child_sum
+ggplot(taxes.zipcode, aes(x = Child_sum, y = MI_sum)) +
+  geom_point(color = 'orange', position = 'jitter', alpha = 1/4)
+ 
+```
+
+This plot shows the data is concentrated in the Child_sum range of 0 to 1000. The next plot will exclude outliers.
+
+
+```{r}
+#Scatterplot of MI_sum vs. Child_sum excluding outliers and with a linear model fit
+ggplot(taxes.zipcode, aes(x = Child_sum, y = MI_sum)) +
+  geom_point(color = 'orange', position = 'jitter', alpha = 1/6) +
+  scale_x_continuous(limits = c(0, 1000)) +
+  scale_y_continuous(limits = c(0, 250000)) +
+  geom_smooth(method = 'lm')
+```
+
+
+```{r}
+#Correlation between Child_sum and MI_sum
+cor.test(taxes.zipcode$Child_sum, taxes.zipcode$MI_sum)
+```
+
+This plot shows that the data better fits the linear model in the Child_sum range of 0 to 250. At higher values, the data varies more with the linear model. The correlation coefficient was 0.82, showing correlation between the child and dependent care tax deduction and mortgage interest deduction.
+
+
+```{r}
+#Scatterplot of Bus_inc_sum vs. Ord_div_sum
+ggplot(taxes.zipcode, aes(x = Ord_div_sum, y = Bus_inc_sum)) +
+  geom_point(color = 'purple', position = 'jitter', alpha = 1/4)
+```
+
+This scatterplot of Bus_inc_sum vs. Ord_div_sum shows that the data is concentrated in the 0 to 50,000 range of Ord_div_sum. The next plot will focus on this range.
+
+
+```{r}
+#Scatterplot of Bus_inc_sum vs. Ord_div_sum excluding outliers and with a linear model fit.
+
+ggplot(taxes.zipcode, aes(x = Ord_div_sum, y = Bus_inc_sum)) +
+  geom_point(color = 'purple', position = 'jitter', alpha = 1/4) +
+  scale_x_continuous(limits = c(0, 50000)) +
+  scale_y_continuous(limits = c(0, 100000)) +
+  geom_smooth(method = 'lm')
+
+
+```
+
+```{r}
+#Correlation between Ord_div_sum and Bus_inc_sum
+cor.test(taxes.zipcode$Ord_div_sum, taxes.zipcode$Bus_inc_sum)
+```
+
+This plot shows the relationship between Ord_div_sum and Bus_inc_sum and fits the data to a linear model line. The data shows greater variation with the linear model at Ord_div_sum values greater than 5,000. The correlation coefficient was 0.75, showing correlation between the two variables.
+
+Next, the regions of Northern, Central and Southern California were grouped by using zipcode, county and map references. The data for these regions was then analyzed.
+
+```{r}
+#Convert Zipcode to numeric type. Cut Zipcode variables by region and create region 
+#variable.
+taxes.zipcode$Zipcode <- as.numeric(as.character(taxes.zipcode$Zipcode))
+taxes.zipcode$region <- cut(taxes.zipcode$Zipcode, breaks = c(90000, 
+                          93177, 93960, 96163))
+
+```
+
+The zipcode variable was first cut and a new region variable was created. The zipcode ranges correspond to zipcode ranges in Northern, Central and Southern California.
+```{r}
+#Summary of taxes.zipcode dataframe with new region variable.
+summary(taxes.zipcode)
+```
+
+The region variable levels were then renamed for each region.
+```{r}
+#Rename levels of region variable. Summary of taxes.zipcode dataframe.
+levels(taxes.zipcode$region) <- c("Southern", "Central", "Northern")
+summary(taxes.zipcode)
+```
+
+```{r}
+#Boxplot of AGI_sum by region exluding NA values and outliers.
+
+ggplot(subset(taxes.zipcode, !is.na(region)), aes(x = region, y = AGI_sum)) +
+  geom_boxplot() +
+  coord_cartesian(ylim = c(0,2500000))
+
+```
+
+```{r}
+#boxplot statistics
+by(subset(taxes.zipcode, !is.na(region))$AGI_sum, subset(taxes.zipcode, !is.na(region))$region, summary)
+```
+
+
+This boxplot shows the distribution of AGI_sum per region excluding outliers. The median AGI_sum is highest for Southern California (904,600) and lowest for Central California (374,400).
+
+```{r}
+#Group data by region and add AGI_sum. Bargraph of AGI_sum.
+
+region_groups <- group_by(subset(taxes.zipcode, !is.na(region)), region)
+taxes.zipcode.region <- summarise(region_groups,
+                                  AGI_total = sum(AGI_sum))
+
+ggplot(taxes.zipcode.region, aes(x = region, y = AGI_total)) +
+  geom_bar(stat = 'identity', fill ='blue')
+```
+
+This bar graph shows the total AGI per region. The total AGI is highest for Southern California and lowest for Central California.
+
+```{r}
+#Histogram of AGI_sum by region
+ggplot(subset(taxes.zipcode, !is.na(region)), aes(AGI_sum, fill = region)) +
+  geom_histogram(color = 'black') +
+  scale_x_log10()
+```
+
+This plot shows the distribution of Northern California AGI_sum. More Northern California zipcodes have AGI less than 100,000 compared with Southern California. Central California values have more uniform representation in the range of AGI.
+
+# Bivariate Analysis
+
+### Talk about some of the relationships you observed in this part of the \
+investigation. How did the feature(s) of interest vary with other features in \
+the dataset?
+
+The AGI was positively correlated with business income and mortgage interest deduction. The correlation coefficient with business income was 0.91 which shows high correlation. The correlation coefficient with mortgage interest deduction was 0.83 which shows a strong correlation. 
+
+The AGI also varied with region, with Southern California having the highest total AGI and Central California having the lowest. 
+
+### Did you observe any interesting relationships between the other features \
+(not the main feature(s) of interest)?
+
+The mortage interest deduction and child and dependent care deduction were positively correlated with a correlation coefficient of 0.82. In addition, increasing ordinary dividends was correlated with increasing business income.
+
+### What was the strongest relationship you found?
+
+The AGI was strongly correlated with business income with a correlation coefficient of 0.91. Increases in business income for zipcode areas were correlated with an increase in AGI.
+
+# Multivariate Plots Section
+
+```{r}
+#Scatterplot of AGI_sum vs. Bus_inc_sum colored by region and excluding NA's and outliers
+ggplot(subset(taxes.zipcode, !is.na(region)), aes(x = Bus_inc_sum, y = AGI_sum, 
+                                                  color = region)) +
+  geom_point( position = 'jitter', alpha = 1/2, size = 2) +
+  geom_smooth(method = "lm", se = FALSE,size=1) +
+  scale_x_continuous(limits = c(0, 100000)) +
+  scale_y_continuous(limits = c(0, 2000000)) 
+```
+
+This plot shows AGI_sum vs. Bus_inc_sum divided by region. Northern California zipcodes are concentrated in the < 25,000 Bus_inc_sum range while Southern California zipcodes are present in the full range of Bus_inc_sum values. Central California zipcodes are less represented in the dataset and are present in the full range of Bus_inc_sum.
+
+
+```{r}
+#Scatterplot of AGI_sum vs. MI_sum colored by region and excluding NA's and outliers.
+ggplot(subset(taxes.zipcode, !is.na(region)), aes(x = MI_sum, y = AGI_sum, 
+                                                  color = region)) +
+  geom_point( position = 'jitter', alpha = 1/2, size = 2) +
+  geom_smooth(method = "lm", se = FALSE,size=1) +
+  scale_x_continuous(limits = c(0, 75000)) +
+  scale_y_continuous(limits = c(0, 1000000))
+```
+
+This plot of AGI_sum vs. MI_sum shows a similar pattern to the previous plot where Northern California zipcodes account for more of the MI_sum values less than 20,000 while Southern California values are present through the full range. Central California zipcodes are represented in the full range of MI_sum. The Southern California linear fit line is offset from the other regions.
+
+```{r}
+#Scatterplot of MI_sum vs. Child_sum colored by region and excluding NA's and outliers.
+ggplot(subset(taxes.zipcode, !is.na(region)), aes(x = Child_sum, y = MI_sum, 
+                                                  color = region)) +
+  geom_point( position = 'jitter', alpha = 1/2) +
+  geom_smooth(method = "lm", se = FALSE,size=1) +
+  scale_x_continuous(limits = c(0, 1500)) +
+  scale_y_continuous(limits = c(0, 250000))
+```
+
+This plot of MI_sum vs. Child_sum shows that all regions are represented in the range of Child_sum from 0 to 1000. There are differences in the linear fit models for the three regions.
+
+```{r}
+#Scatterplot of Bus_inc_sum vs. Ord_div_sum colored by region and excluding outliers.
+ggplot(subset(taxes.zipcode, !is.na(region)), aes(x = Ord_div_sum, 
+  y = Bus_inc_sum, color = region)) +
+  geom_point( position = 'jitter', alpha = 1/2, size = 2) +
+  geom_smooth(method = "lm", se = FALSE,size=1) +
+  scale_x_continuous(limits = c(0, 50000)) +
+  scale_y_continuous(limits = c(0, 100000))
+```
+
+This is a plot of Bus_inc_sum vs. Ord_div_sum divided by region. All regions are represented in the range of 0 to 50,000. The Southern California data is more offset from the Northern California data in the lower range of Ord_div_sum from 0 to 10,000. Central California data is sparsely represented in the dataset. The Southern California linear fit line is offset from the other two regions.
+
+Next, the zipcode data was merged with latitude and longitude reference information to create a California map of AGI_sum variation.
+```{r}
+#Import zipcode latitude and longitude reference. Merge with dataframe by zipcode.
+zipcode_ref<- read.csv('zipcode_ref.csv')
+names(zipcode_ref)[names(zipcode_ref) == 'ZIP'] <- 'Zipcode'
+all_zip <- merge(taxes.zipcode,  zipcode_ref, by = "Zipcode")
+
+```
+
+```{r}
+#create California map
+map<-get_map(location = 'california', zoom = 6, maptype = "roadmap", 
+             source = 'google', color = 'bw')
+```
+
+```{r}
+#create map plot of AGI_sum by zipcode
+ggmap(map) + geom_point(aes(x = LNG, y = LAT, show_guide = TRUE, 
+  color = AGI_sum, alpha = 1/100), data = all_zip, alpha = 0.5, na.rm = T) +
+  scale_color_gradient(low="#132B43", high= 'yellow')
+```
+
+The map plot above shows the AGI_sum by zipcode. Urban areas such as Los Angeles and San Francisco show high concentrations of zipcodes with greater AGI_sum.
+
+# Multivariate Analysis
+
+### Talk about some of the relationships you observed in this part of the \
+investigation. Were there features that strengthened each other in terms of \
+looking at your feature(s) of interest?
+
+Northern California business income and mortgage interest deductions were concentrated in the lower range of these variables, while Southern California zipcodes were present in the full range. The distribution between regions was similar when plotting child care deduction vs. mortgage income. The positive correlation between business income and ordinary dividends was offset between Northern and Southern California zipcodes.
+
+### Were there any interesting or surprising interactions between features?
+
+The map plot showed that higher AGI zipcodes were concentrated in urban and nearby suburban areas.
+
+# Final Plots and Summary
+
+### Plot One
+
+```{r}
+#Scatterplot of AGI_sum vs. Bus_inc_sum excluding outliers and with a linear model line.
+ggplot(taxes.zipcode, aes(x = Bus_inc_sum, y = AGI_sum)) +
+  geom_point(color = 'red', position = 'jitter', alpha = 1/6) +
+  scale_x_continuous(limits = c(0, 250000)) +
+  scale_y_continuous(limits = c(0, 7500000)) +
+  geom_smooth(method = 'lm') + 
+  labs(x = "Business income (thousands $)", 
+       y = "Adjusted gross income (AGI) (thousands $", 
+       title = "AGI vs. Business income for zipcodes 
+       in California (cor = 0.91)")
+
+
+```
+
+
+### Description One
+
+This plot shows AGI vs. business income per zipcode in California with a linear model fit of the data. Outliers were excluded in this plot. The data is positively correlated as shown in the correlation coefficient of 0.91. As business income increases for a zipcode area, there is an associated increase in AGI. 
+
+### Plot Two
+
+```{r}
+#Boxplot of AGI_sum by region exluding NA values and outliers.
+
+ggplot(subset(taxes.zipcode, !is.na(region)), aes(x = region, y = AGI_sum)) +
+  geom_boxplot() +
+  coord_cartesian(ylim = c(0,2500000)) +
+  labs(x = "Region in California", 
+       y = "Adjusted gross income (AGI) (thousands $)", 
+       title = "AGI vs. region in California")
+```
+
+### Description Two
+
+The boxplot above shows the distribution of AGI for each region of California. Outliers were excluded in this plot. The median AGI is highest for Southern California (904,600) and lowest for Central California (374,400).
+
+### Plot Three
+
+```{r}
+ggmap(map) + geom_point(aes(x = LNG, y = LAT, show_guide = TRUE, 
+                        color = AGI_sum, alpha = 1/100), data = all_zip, 
+                        alpha = 0.5, na.rm = T) +
+  scale_color_gradient(low="#132B43", high= 'yellow') +
+  labs(title = 'Adjusted gross income (AGI) per zipcode in 
+       California in thousands $')
+```
+
+### Description Three
+
+The map plot above shows the AGI per zipcode in California. Metropolitan areas including Los Angeles, San Francisco, San Jose and Sacramento show greater concentrations of zipcodes with AGI > 7,500,000.
+
+# Reflection
+
+The data was initially plotted to examine the distribution of variables by AGI category. However, dividing the zipcode data by AGI category would not provide an overview of each zipcode. This presented difficulties in understanding the data by zipcode. Therefore, a new dataframe was created to sum the data per zipcode and perform further analysis. This new dataframe was later successfully analyzed for data by zipcode. In order to create the map plot, a reference dataset was imported and merged with the existing dataset to add longitude and latitude data necessary for mapping.
+
+Next, correlations were examined between variables in this new dataframe. Both business income and mortgage interest deduction showed positive correlation with AGI. A new variable was then created for the region of California that corresponds to each zipcode. Northern california values for mortage interest deduction, business income, ordinary dividends and child and dependent care deduction were more concentrated in the lower range of these variables, while Southern California values were present in the full range of data. Central California zipcode values were less frequent in the dataset. Overall AGI was highest for Southern California and lowest for Central California. The map plot showed that urban areas contained more zipcodes with higher AGI.
+
+This analysis could be expanded to account for population differences in zipcode areas and regions. After accounting for population differences, more accurate comparisons between variables could be made. In addition, this analysis could be performed after implementation of policies affecting home ownership, business development and investment as these were correlated with AGI in this dataset.
+
+
